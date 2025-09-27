@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Chat Socket.IO UNA — URLs seguras</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+      form { background: #000; padding: 8px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px;}
+      form button { width: 14%; background: rgb(130, 224, 255);  border: none; padding: 10px; cursor: pointer; }
+      #messages { list-style-type: none; margin: 0; padding: 0; margin-bottom: 56px }
+      #messages li { padding: 8px 12px; border-bottom: 1px solid #eee; }
+      #nombre, #m { display: inline-block;}
+      #m { width: 70%; margin-right: 6px; }
+      .msg-head { margin-right: 6px; }
+      .msg-caption { display: inline; margin-left: 4px; white-space: pre-wrap; }
+      .msg-media { display:block; margin-top: 8px; max-width: 480px; width: 100%; border-radius: 6px; }
+      iframe.msg-media { height: 270px; border: 0; }
+      video.msg-media { max-height: 360px; }
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form id="chat-form" action="">
+      <input id="nombre" placeholder="Tu nombre" />
+      <input id="m" autocomplete="off" placeholder="Escribe un mensaje o pega una URL de imagen/video" />
+      <button>Enviar</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      (function () {
+        const socket = io();
+
+        const form = document.getElementById("chat-form");
+        const inputName = document.getElementById("nombre");
+        const inputMsg = document.getElementById("m");
+        const messages = document.getElementById("messages");
+
+        function appendMessage(payload) {
+          // payload viene saneado por el servidor (validarMensaje)
+          const li = document.createElement("li");
+
+          const strong = document.createElement("strong");
+          strong.className = "msg-head";
+          strong.style.color = payload.color || "#000000";
+          strong.textContent = payload.nombre || "Anónimo";
+          li.appendChild(strong);
+
+          if (payload.mensaje) {
+            const span = document.createElement("span");
+            span.className = "msg-caption";
+            span.textContent = ": " + payload.mensaje;
+            li.appendChild(span);
+          }
+
+          if (payload.kind === "image" && payload.src) {
+            const img = document.createElement("img");
+            img.className = "msg-media";
+            img.src = payload.src;
+            img.alt = "Imagen compartida";
+            img.referrerPolicy = "no-referrer";
+            li.appendChild(img);
+          } else if (payload.kind === "video") {
+            if (payload.provider === "youtube" && payload.embedUrl) {
+              const iframe = document.createElement("iframe");
+              iframe.className = "msg-media";
+              iframe.src = payload.embedUrl;
+              iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+              iframe.allowFullscreen = true;
+              li.appendChild(iframe);
+            } else if (payload.provider === "vimeo" && payload.embedUrl) {
+              const iframe = document.createElement("iframe");
+              iframe.className = "msg-media";
+              iframe.src = payload.embedUrl;
+              iframe.allow = "autoplay; fullscreen; picture-in-picture";
+              iframe.allowFullscreen = true;
+              li.appendChild(iframe);
+            } else if (payload.src) {
+              const video = document.createElement("video");
+              video.className = "msg-media";
+              video.src = payload.src;
+              video.controls = true;
+              video.preload = "metadata";
+              li.appendChild(video);
+            }
+          }
+
+          messages.appendChild(li);
+          window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          const nombre = inputName.value.trim() || "Anónimo";
+          const mensaje = inputMsg.value;
+          const color = "#0ea5e9"; // color fijo y seguro en el client
+          const payload = JSON.stringify({ nombre, color, mensaje });
+          socket.emit("Evento-Mensaje-Server", payload);
+          inputMsg.value = "";
+        });
+
+        socket.on("Evento-Mensaje-Server", function (msg) {
+          let payload;
+          try { payload = JSON.parse(msg); } catch { return; }
+          appendMessage(payload);
+        });
+      })();
+    </script>
+  </body>
+</html>
