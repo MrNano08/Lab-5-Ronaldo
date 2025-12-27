@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "express": "*",
+    "express": "5.2.1",
     "socket.io": "*"
   },
   "scripts": {
